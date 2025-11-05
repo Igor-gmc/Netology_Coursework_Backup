@@ -1,8 +1,6 @@
 # Класс для работы с dogs API
 
-import requests, re
-
-
+import requests
 class DogAPI:
     base_url = "https://dog.ceo/api/breed/"
     base_image_url = "https://images.dog.ceo/breeds/"
@@ -85,8 +83,7 @@ class DogAPI:
                 
                 # Записываем в словарь пару Название файла для будущего сохранения, ссылка на файл
                 if breed_name == breed_in_url:
-                    if breed_name not in breed_dict:
-                        breed_dict.setdefault(breed_name, []).append([file_name, img_url])
+                    breed_dict.setdefault(breed_name, []).append([file_name, img_url])
                 else:
                     continue
         return breed_dict
