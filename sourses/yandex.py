@@ -1,8 +1,10 @@
 # класс для работы с Yandex
 
 import requests
+class YandexAPI:
+    BASE_URL = "https://cloud-api.yandex.net/v1/disk/resources"
+    BASE_URL_UPLOAD_FILES = "https://cloud-api.yandex.net/v1/disk/resources/upload"
 
-class Yandex:
     def __init__(self, api_key: str):
         self.__api_key = api_key
 
@@ -22,16 +24,15 @@ class Yandex:
             str: Путь для загрузки файлов на яндекс диск
         """
 
-        base_url = "https://cloud-api.yandex.net/v1/disk/resources"
         headers = {"Authorization": f"OAuth {self.api_key}"}
 
         # Создаем папку для курсовой
         path_hw_folder = "course_paper_ntlg"
         params_hw_folder = {"path": path_hw_folder}
         try:
-            resp_hw_folder = requests.put(f"{base_url}", headers=headers, params=params_hw_folder)
-            if resp_hw_folder.status_code != 201 or resp_hw_folder.status_code != 409:
-                return ""
+            resp_hw_folder = requests.put(f"{self.BASE_URL}", headers=headers, params=params_hw_folder)
+            if resp_hw_folder.status_code == 201 or resp_hw_folder.status_code == 409:
+                print(f"Главная папка создана: {params_hw_folder}, {resp_hw_folder.status_code}")
         except requests.exceptions.Timeout:
             print("Время ожидания ответа истекло: {path_hw_folder}")
             return ""
@@ -45,10 +46,13 @@ class Yandex:
         # создаем папку для фото породы/подпороды
         try:
             breed_params = {"path": f"{path_hw_folder}/{in_path_folder_breed}"}
-            resp_breed_folder = requests.put(base_url, headers=headers, params=breed_params)
-            if resp_breed_folder.status_code != 201 or resp_breed_folder.status_code != 409:
+            resp_breed_folder = requests.put(self.BASE_URL, headers=headers, params=breed_params)
+            if resp_breed_folder.status_code in (200, 201, 202, 409):
+                print(f"Папка {path_hw_folder}/{in_path_folder_breed} создана!")
+                return f"{path_hw_folder}/{in_path_folder_breed}"
+            else:
                 return ""
-            return f"{path_hw_folder}/{in_path_folder_breed}"
+            
         except requests.exceptions.Timeout:
             print("Время ожидания ответа истекло: {path_hw_folder}")
             return ""
@@ -74,7 +78,8 @@ class Yandex:
             bool: Если файлы загружены, то возвращается True, иначе False
         """
 
-        base_url_upload_files = "https://cloud-api.yandex.net/v1/disk/resources/upload"
+        
+
         headers = {"Authorization": f"OAuth {self.api_key}"}
 
         # Создаем нужную папку для сохранения файлов
@@ -88,16 +93,30 @@ class Yandex:
         success = True  # флаг для отслеживания неудачных загрузок
     
         for file_name, img_url in file_info:
-            params = {"path": f"{breed_folder}/{file_name}", "url": img_url}
+            path_ = f"{breed_folder}/{file_name}"
+            params_load = {"path": path_, "url": img_url}
+            params_check_file = {"path": path_}
+
             try:
-                resp_upload_yd = requests.post(base_url_upload_files, headers=headers, params=params, timeout=10)
+                # Отправляем запрос на проверку наличия файла
+                resp_check_file = requests.get(self.BASE_URL, headers=headers, params=params_check_file, timeout=10)
+                
+                # Смотрим есть ли уже такой файл на диске?
+                if resp_check_file.status_code == 200: # Если статус 200, то пропускаем загрузку файла
+                    print(f"Файл : {file_name} уже есть на диске")
+                    continue
+                
+                # Загружаем файл на диск по ссылке
+                resp_upload_yd = requests.post(self.BASE_URL_UPLOAD_FILES, headers=headers, params=params_load, timeout=10)
+                
+                # Проверяем загрузку файла
                 if resp_upload_yd.status_code in (200, 202):
                     print(f"Загружен файл: {file_name}")
-                elif resp_upload_yd.status_code == 409:
-                    print(f"Файл уже существует: {file_name}")
+                    success = True
                 else:
                     print(f"Ошибка {resp_upload_yd.status_code} при загрузке {file_name}: {resp_upload_yd.text}")
                     success = False
+                
             except requests.exceptions.Timeout:
                 print("Время ожидания ответа истекло")
                 success = False
@@ -108,6 +127,9 @@ class Yandex:
                 print(f"Ошибка запроса: {e}")
                 success = False
 
+        if success:
+            print("Все файлы успешно загружены!")
+        else:
+            print("Некоторые файлы не удалось загрузить.")
+            
         return success
-        
-        
