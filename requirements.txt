@@ -3,3 +3,4 @@ black
 pylint
 requests
 python-dotenv
+logging
